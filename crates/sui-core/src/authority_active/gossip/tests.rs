@@ -169,6 +169,7 @@ async fn start_gossip_process(
                     state,
                     inner_clients,
                     GatewayMetrics::new_for_tests(),
+                    Default::default(),
                 )
                 .unwrap(),
             );

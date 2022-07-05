@@ -2,10 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-    authority_active::{checkpoint_driver::CheckpointProcessControl, ActiveAuthority},
-    authority_client::LocalAuthorityClient,
-    checkpoints::checkpoint_tests::TestSetup,
-    gateway_state::GatewayMetrics,
+    authority_active::ActiveAuthority, authority_client::LocalAuthorityClient,
+    checkpoints::checkpoint_tests::TestSetup, gateway_state::GatewayMetrics,
     safe_client::SafeClient,
 };
 
@@ -37,6 +35,7 @@ async fn checkpoint_active_flow_happy_path() {
                     inner_state.authority.clone(),
                     clients,
                     GatewayMetrics::new_for_tests(),
+                    Default::default(),
                 )
                 .unwrap(),
             );
@@ -115,6 +114,7 @@ async fn checkpoint_active_flow_crash_client_with_gossip() {
                     inner_state.authority.clone(),
                     clients,
                     GatewayMetrics::new_for_tests(),
+                    Default::default(),
                 )
                 .unwrap(),
             );
@@ -123,9 +123,7 @@ async fn checkpoint_active_flow_crash_client_with_gossip() {
             active_state.clone().spawn_execute_process().await;
 
             // Spin the checkpoint service.
-            active_state
-                .spawn_checkpoint_process_with_config(Some(CheckpointProcessControl::default()))
-                .await;
+            active_state.spawn_checkpoint_process().await;
         });
     }
 
@@ -209,6 +207,7 @@ async fn checkpoint_active_flow_crash_client_no_gossip() {
                     inner_state.authority.clone(),
                     clients,
                     GatewayMetrics::new_for_tests(),
+                    Default::default(),
                 )
                 .unwrap(),
             );
@@ -217,9 +216,7 @@ async fn checkpoint_active_flow_crash_client_no_gossip() {
             active_state.clone().spawn_execute_process().await;
 
             // Spin the gossip service.
-            active_state
-                .spawn_checkpoint_process_with_config(Some(CheckpointProcessControl::default()))
-                .await;
+            active_state.spawn_checkpoint_process().await;
         });
     }
 
@@ -303,6 +300,7 @@ async fn test_empty_checkpoint() {
                     inner_state.authority.clone(),
                     clients,
                     GatewayMetrics::new_for_tests(),
+                    Default::default(),
                 )
                 .unwrap(),
             );
@@ -310,9 +308,7 @@ async fn test_empty_checkpoint() {
             active_state.clone().spawn_execute_process().await;
 
             // Spin the gossip service.
-            active_state
-                .spawn_checkpoint_process_with_config(Some(CheckpointProcessControl::default()))
-                .await;
+            active_state.spawn_checkpoint_process().await;
         });
     }
 

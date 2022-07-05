@@ -65,16 +65,14 @@ async fn spawn_checkpoint_processes(
                     state,
                     clients,
                     GatewayMetrics::new_for_tests(),
+                    CheckpointProcessControl {
+                        long_pause_between_checkpoints: Duration::from_millis(10),
+                        ..CheckpointProcessControl::default()
+                    },
                 )
                 .unwrap(),
             );
-            let checkpoint_process_control = CheckpointProcessControl {
-                long_pause_between_checkpoints: Duration::from_millis(10),
-                ..CheckpointProcessControl::default()
-            };
-            active_state
-                .spawn_checkpoint_process_with_config(Some(checkpoint_process_control))
-                .await
+            active_state.spawn_checkpoint_process().await
         });
     }
 }

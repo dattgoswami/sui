@@ -37,10 +37,13 @@ use std::{
     time::Duration,
 };
 use sui_storage::{follower_store::FollowerStore, node_sync_store::NodeSyncStore};
-use sui_types::{base_types::AuthorityName, error::SuiResult};
+use sui_types::{
+    base_types::AuthorityName,
+    error::{SuiError, SuiResult},
+};
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
-use tracing::error;
+use tracing::{error, info};
 
 use crate::{
     authority::AuthorityState, authority_aggregator::AuthorityAggregator,
@@ -52,7 +55,9 @@ pub mod gossip;
 use gossip::{gossip_process, node_sync_process};
 
 pub mod checkpoint_driver;
-use checkpoint_driver::checkpoint_process;
+use checkpoint_driver::{
+    checkpoint_process, get_latest_proposal_and_checkpoint_from_all, sync_to_checkpoint,
+};
 
 pub mod execution_driver;
 
@@ -112,6 +117,7 @@ pub struct ActiveAuthority<A> {
     // Network health
     pub health: Arc<Mutex<HashMap<AuthorityName, AuthorityHealth>>>,
     pub gateway_metrics: GatewayMetrics,
+    checkpoint_config: CheckpointProcessControl,
 }
 
 impl<A> ActiveAuthority<A> {
@@ -121,6 +127,7 @@ impl<A> ActiveAuthority<A> {
         follower_store: Arc<FollowerStore>,
         authority_clients: BTreeMap<AuthorityName, A>,
         gateway_metrics: GatewayMetrics,
+        checkpoint_config: CheckpointProcessControl,
     ) -> SuiResult<Self> {
         let committee = authority.clone_committee();
 
@@ -140,13 +147,19 @@ impl<A> ActiveAuthority<A> {
                 gateway_metrics.clone(),
             ))),
             gateway_metrics,
+            checkpoint_config,
         })
+    }
+
+    fn net(&self) -> Arc<AuthorityAggregator<A>> {
+        self.net.load().clone()
     }
 
     pub fn new_with_ephemeral_storage(
         authority: Arc<AuthorityState>,
         authority_clients: BTreeMap<AuthorityName, A>,
         gateway_metrics: GatewayMetrics,
+        checkpoint_config: CheckpointProcessControl,
     ) -> SuiResult<Self> {
         let working_dir = tempfile::tempdir().unwrap();
         let follower_db_path = working_dir.path().join("follower_db");
@@ -161,6 +174,7 @@ impl<A> ActiveAuthority<A> {
             follower_store,
             authority_clients,
             gateway_metrics,
+            checkpoint_config,
         )
     }
 
@@ -219,6 +233,7 @@ impl<A> Clone for ActiveAuthority<A> {
             net: ArcSwap::from(self.net.load().clone()),
             health: self.health.clone(),
             gateway_metrics: self.gateway_metrics.clone(),
+            checkpoint_config: self.checkpoint_config.clone(),
         }
     }
 }
@@ -227,21 +242,39 @@ impl<A> ActiveAuthority<A>
 where
     A: AuthorityAPI + Send + Sync + 'static + Clone,
 {
-    pub async fn spawn_checkpoint_process(self: Arc<Self>) {
-        self.spawn_checkpoint_process_with_config(Some(CheckpointProcessControl::default()))
-            .await
+    pub async fn sync_to_latest_checkpoint(&self) -> SuiResult {
+        let checkpoint_store =
+            self.state
+                .checkpoints
+                .clone()
+                .ok_or(SuiError::UnsupportedFeatureError {
+                    error: "Checkpoint not supported".to_owned(),
+                })?;
+
+        let (checkpoint_summary, _) = get_latest_proposal_and_checkpoint_from_all(
+            self.net(),
+            self.checkpoint_config.extra_time_after_quorum,
+            self.checkpoint_config.timeout_until_quorum,
+        )
+        .await?;
+
+        let checkpoint_summary = match checkpoint_summary {
+            Some(c) => c,
+            None => {
+                info!(name = ?self.state.name, "no checkpoints found");
+                return Ok(());
+            }
+        };
+
+        sync_to_checkpoint(self, checkpoint_store, checkpoint_summary).await
     }
 
     /// Spawn all active tasks.
-    pub async fn spawn_checkpoint_process_with_config(
-        self: Arc<Self>,
-        checkpoint_process_control: Option<CheckpointProcessControl>,
-    ) {
+    pub async fn spawn_checkpoint_process(self: Arc<Self>) {
+        let checkpoint_config = self.checkpoint_config.clone();
         // Spawn task to take care of checkpointing
         let _checkpoint_join = tokio::task::spawn(async move {
-            if let Some(checkpoint) = checkpoint_process_control {
-                checkpoint_process(&self, &checkpoint).await;
-            }
+            checkpoint_process(&self, &checkpoint_config).await;
         });
 
         if let Err(err) = _checkpoint_join.await {

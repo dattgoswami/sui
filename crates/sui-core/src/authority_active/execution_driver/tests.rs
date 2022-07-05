@@ -35,6 +35,7 @@ async fn pending_exec_storage_notify() {
                     inner_state.authority.clone(),
                     clients,
                     GatewayMetrics::new_for_tests(),
+                    Default::default(),
                 )
                 .unwrap(),
             );
@@ -119,6 +120,7 @@ async fn pending_exec_full() {
                     inner_state.authority.clone(),
                     clients,
                     GatewayMetrics::new_for_tests(),
+                    Default::default(),
                 )
                 .unwrap(),
             );

@@ -57,6 +57,7 @@ async fn test_start_epoch_change() {
         state.clone(),
         net.clone_inner_clients(),
         GatewayMetrics::new_for_tests(),
+        Default::default(),
     )
     .unwrap();
     // Make the high watermark differ from low watermark.
@@ -168,6 +169,7 @@ async fn test_finish_epoch_change() {
                 state.clone(),
                 net.clone_inner_clients(),
                 GatewayMetrics::new_for_tests(),
+                Default::default(),
             )
             .unwrap()
         })

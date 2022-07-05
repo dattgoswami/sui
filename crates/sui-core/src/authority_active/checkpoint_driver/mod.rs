@@ -36,6 +36,7 @@ pub(crate) mod tests;
 
 use super::ActiveAuthority;
 
+#[derive(Clone)]
 pub struct CheckpointProcessControl {
     /// The time to allow upon quorum failure for sufficient
     /// authorities to come online, to proceed with the checkpointing
