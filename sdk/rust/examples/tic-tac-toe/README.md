@@ -29,7 +29,7 @@ you can use the following command
       cargo run --example tic-tac-toe -- --game-package-id <<games package object ID>> new-game --player-x <<player X address>> --player-o <<player O address>>
       ```
    * Copy the game id and pass it to your friend to join the game.
-### 4. Joining
+### 4. Joining the game
    * run the following command in the sui source code folder to join the game.
       ```shell
       cargo run --example tic-tac-toe -- --game-package-id <<games package object ID>> join-game --my-identity <<address>> --game-id <<game ID>>
