@@ -2,13 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 use rand::{rngs::StdRng, SeedableRng};
 use std::collections::HashSet;
-use std::sync::Arc;
 use sui_core::{
-    authority::AuthorityState,
-    authority_active::{checkpoint_driver::CheckpointProcessControl, ActiveAuthority},
-    authority_aggregator::AuthorityAggregator,
+    authority::AuthorityState, authority_aggregator::AuthorityAggregator,
     authority_client::NetworkAuthorityClient,
-    gateway_state::GatewayMetrics,
 };
 use sui_node::SuiNode;
 use sui_types::{
@@ -19,8 +15,8 @@ use sui_types::{
 use test_utils::transaction::publish_counter_package;
 use test_utils::{
     authority::{
-        spawn_test_authorities, submit_shared_object_transaction, test_authority_aggregator,
-        test_authority_configs,
+        spawn_checkpoint_processes, spawn_test_authorities, submit_shared_object_transaction,
+        test_authority_aggregator, test_authority_configs,
     },
     messages::{move_transaction, test_transactions},
     objects::test_gas_objects,
@@ -49,32 +45,6 @@ fn transactions_in_checkpoint(authority: &AuthorityState) -> HashSet<Transaction
                 .collect::<HashSet<_>>()
         })
         .collect::<HashSet<_>>()
-}
-
-async fn spawn_checkpoint_processes(
-    aggregator: &AuthorityAggregator<NetworkAuthorityClient>,
-    handles: &[SuiNode],
-) {
-    // Start active part of each authority.
-    for authority in handles {
-        let state = authority.state().clone();
-        let clients = aggregator.clone_inner_clients();
-        let _active_authority_handle = tokio::spawn(async move {
-            let active_state = Arc::new(
-                ActiveAuthority::new_with_ephemeral_storage(
-                    state,
-                    clients,
-                    GatewayMetrics::new_for_tests(),
-                    CheckpointProcessControl {
-                        long_pause_between_checkpoints: Duration::from_millis(10),
-                        ..CheckpointProcessControl::default()
-                    },
-                )
-                .unwrap(),
-            );
-            active_state.spawn_checkpoint_process().await
-        });
-    }
 }
 
 async fn execute_transactions(
