@@ -6606,7 +6606,6 @@ dependencies = [
  "serde 1.0.139",
  "sui-client",
  "sui-json",
- "sui-json-rpc-types",
  "sui-types",
  "tokio",
 ]
@@ -6824,6 +6823,7 @@ dependencies = [
  "sui-config",
  "sui-json",
  "sui-json-rpc",
+ "sui-json-rpc-types",
  "sui-types",
  "test-utils",
  "tokio",
