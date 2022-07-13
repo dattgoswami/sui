@@ -439,7 +439,7 @@ where
         Action::Promote => {
             state_checkpoints
                 .lock()
-                .promote_signed_checkpoint_to_cert(checkpoint, committee, None)?;
+                .promote_signed_checkpoint_to_cert(checkpoint, committee)?;
             Ok(true)
         }
         Action::NewCert => {
@@ -503,14 +503,11 @@ where
     if let Some(AuthenticatedCheckpoint::Signed(signed)) = &latest_checkpoint {
         let seq = *signed.summary.sequence_number();
         debug!("Partial Sync ({_name:?}): {seq:?}",);
-        let (past, contents) =
-            get_one_checkpoint(net.clone(), seq, false, &available_authorities).await?;
+        let (past, _) = get_one_checkpoint(net.clone(), seq, false, &available_authorities).await?;
 
-        checkpoint_db.lock().promote_signed_checkpoint_to_cert(
-            &past,
-            &net.committee,
-            contents.as_ref(),
-        )?;
+        checkpoint_db
+            .lock()
+            .promote_signed_checkpoint_to_cert(&past, &net.committee)?;
     }
 
     let full_sync_start = latest_checkpoint
