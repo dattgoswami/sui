@@ -124,7 +124,7 @@ where
         // all active processes, maybe batch service.
         // We should also reduce the amount of committee passed around.
 
-        let advance_epoch_tx = SignedTransaction::new_change_epoch(
+        let advance_epoch_tx = Transaction::new_change_epoch(
             next_epoch,
             0, // TODO: fill in storage_charge
             0, // TODO: fill in computation_charge

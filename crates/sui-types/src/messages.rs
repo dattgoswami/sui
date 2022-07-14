@@ -735,7 +735,7 @@ impl SignedTransaction {
             transaction_digest: OnceCell::new(),
             is_verified: false,
             data,
-            tx_signature: Signature::new_empty(),
+            tx_signature: Signature::Empty,
             auth_sign_info: AuthoritySignInfo {
                 epoch: next_epoch,
                 authority,

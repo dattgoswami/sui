@@ -19,6 +19,7 @@ use move_core_types::ident_str;
 use move_core_types::identifier::IdentStr;
 use narwhal_crypto::bls12381::BLS12381PublicKeyBytes;
 use narwhal_crypto::ed25519::Ed25519PublicKeyBytes;
+use narwhal_crypto::traits::VerifyingKeyBytes;
 use opentelemetry::{global, Context};
 use rand::Rng;
 use schemars::JsonSchema;
@@ -28,7 +29,7 @@ use serde_with::Bytes;
 use sha3::Sha3_256;
 
 use crate::committee::EpochId;
-use crate::crypto::PublicKeyBytes;
+use crate::crypto::{AuthorityPublicKeyBytes, AccountKeyPair};
 use crate::error::ExecutionError;
 use crate::error::ExecutionErrorKind;
 use crate::error::SuiError;
@@ -69,7 +70,7 @@ pub type VersionNumber = SequenceNumber;
 #[derive(Eq, PartialEq, Ord, PartialOrd, Clone, Hash, Default, Debug, Serialize, Deserialize)]
 pub struct UserData(pub Option<[u8; 32]>);
 
-pub type AuthorityName = PublicKeyBytes;
+pub type AuthorityName = AuthorityPublicKeyBytes;
 
 #[serde_as]
 #[derive(Eq, PartialEq, Clone, Copy, PartialOrd, Ord, Hash, Serialize, Deserialize, JsonSchema)]
@@ -185,27 +186,19 @@ impl TryFrom<Vec<u8>> for SuiAddress {
     }
 }
 
-impl From<&BLS12381PublicKeyBytes> for SuiAddress {
-    fn from(key: &BLS12381PublicKeyBytes) -> SuiAddress {
-        Self::from(*key)
-    }
+pub trait IntoSuiAddress {
+    fn into_sui_address(&self) -> SuiAddress;
 }
 
-impl From<&Ed25519PublicKeyBytes> for SuiAddress {
-    fn from(key: &Ed25519PublicKeyBytes) -> SuiAddress {
-        Self::from(*key)
-    }
-}
-
-impl From<BLS12381PublicKeyBytes> for SuiAddress {
-    fn from(key: BLS12381PublicKeyBytes) -> SuiAddress {
+impl<T: VerifyingKeyBytes> IntoSuiAddress for T {
+    fn into_sui_address(&self) -> SuiAddress {
         let mut hasher = Sha3_256::default();
-        hasher.update(key.as_ref());
+        hasher.update(self.as_ref());
         let g_arr = hasher.finalize();
 
         let mut res = [0u8; SUI_ADDRESS_LENGTH];
         res.copy_from_slice(&AsRef::<[u8]>::as_ref(&g_arr)[..SUI_ADDRESS_LENGTH]);
-        Self(res)
+        SuiAddress(res)
     }
 }
 
@@ -496,8 +489,9 @@ impl ObjectDigest {
     }
 }
 
+// Gets a new account address
 pub fn get_new_address() -> SuiAddress {
-    crate::crypto::get_key_pair().0
+    crate::crypto::get_key_pair::<AccountKeyPair>().0
 }
 
 pub fn bytes_as_hex<B, S>(bytes: &B, serializer: S) -> Result<S::Ok, S::Error>
