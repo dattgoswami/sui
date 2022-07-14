@@ -18,6 +18,7 @@ impl SuiRpcClient {
         let client = HttpClientBuilder::default().build(server_url)?;
         Ok(Self { client })
     }
+    
 
     pub fn read_api(&self) -> &impl RpcReadApiClient {
         &self.client
